@@ -3,42 +3,11 @@ const moment = require('moment')
 const router = require('express').Router()
 const Reservation = require('../models/Reservation')
 
-// Função para verificar conflitos de horários
-// async function checkConflicts(dateTime, duration) {
-//   const startTime = moment(dateTime)
-//   const endTime = moment(dateTime).add(duration, 'minutes')
-
-//   const conflictingReservations = await Reservation.find({
-//     $or: [
-//       {
-//         $and: [
-//           { dateTime: { $gte: startTime } },
-//           { dateTime: { $lte: endTime } },
-//         ],
-//       },
-//       {
-//         $and: [
-//           { dateTime: { $lte: startTime } },
-//           { dateTime: { $gte: endTime } },
-//         ],
-//       },
-//     ],
-//   });
-
-//   return conflictingReservations.length > 0;
-// }
-
 // Criar reserva
 router.post('/', async (req, res) => {
   const { name, lastName, dateTime, service } = req.body
 
   const parsedDateTime = moment(dateTime, 'LLL', 'pt-br').toDate()
-
-  // const available = await checkConflicts(parsedDateTime, duration)
-
-  // if (!available) {
-  //   return res.status(422).json({msg: 'Horário indisponível'})
-  // }
 
   if(!name) {
     return res.status(422).json({msg: 'O nome é obrigatório!'})
@@ -67,7 +36,83 @@ router.post('/', async (req, res) => {
     await reservation.save();
     res.status(201).json({msg: 'Reserva criada com sucesso!'})
   } catch (error) {
-    res.status(500).json({msg: error})
+    res.status(500).json({msg: 'Erro ao criar reserva!'})
+  }
+})
+
+// Ler dados
+router.get('/', async (req, res) => {
+  try {
+    const reservations = await Reservation.find()
+    res.status(200).json(reservations)
+  } catch (error) {
+    res.status(500).json({msg: 'Erro ao buscar reservas!'})
+  }
+})
+
+// Resgatar reserva por ID
+router.get('/:id', async (req, res) => {
+  const id = req.params.id
+
+  try {
+    const reservation = await Reservation.findOne({_id: id})
+
+    if (!reservation) {
+      return res.status(422).json({msg: 'Reserva não encontrada!'})
+    }
+
+    res.status(200).json(reservation)
+
+  } catch (error) {
+    res.status(500).json({msg: 'Erro ao buscar reserva!'})
+  }
+})
+
+// Atualizar reserva
+router.patch('/:id', async (req, res) => {
+  const id = req.params.id
+  const { name, lastName, dateTime, service } = req.body
+
+  const parsedDateTime = moment(dateTime, 'LLL', 'pt-br').toDate()
+
+  const reservation = {
+    name,
+    lastName,
+    dateTime: parsedDateTime,
+    service
+  }
+
+  try {
+    const updatedReservation = await Reservation.updateOne({_id: id}, reservation)
+
+    if (updatedReservation.matchedCount === 0) {
+      return res.status(422).json({msg: 'Reserva não encontrada!'})
+    }
+
+    res.status(200).json(reservation)
+  } catch (error) {
+    res.status(500).json({msg: 'Erro ao atualizar reserva!'})
+  }
+})
+
+// Deletar reserva
+router.delete('/:id', async (req, res) => {
+  const id = req.params.id
+
+  const reservation = await Reservation.findOne({_id: id})
+
+  if (!reservation) {
+    return res.status(422).json({msg: 'Reserva não encontrada!'})
+  }
+
+  try {
+
+    await Reservation.deleteOne({_id: id})
+
+    res.status(200).json({msg: 'Reserva excluída com sucesso!'})
+
+  } catch (error) {
+    res.status(500).json({msg: 'Erro ao excluir reserva!'})
   }
 })
 
